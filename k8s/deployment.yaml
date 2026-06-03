@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coursevt
+  namespace: coursevt
+  labels:
+    app: coursevt
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: coursevt
+  template:
+    metadata:
+      labels:
+        app: coursevt
+    spec:
+      containers:
+        - name: coursevt
+          image: ghcr.io/owner/coursevt:v0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: APP_VERSION
+              value: "v0.1.0"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
