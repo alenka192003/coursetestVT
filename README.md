@@ -134,7 +134,7 @@ Workflow использует GitHub Container Registry: `ghcr.io/<owner>/<repo>
 KUBE_CONFIG
 ```
 
-Значение секрета должно быть base64-представлением kubeconfig:
+Значение секрета может быть обычным содержимым kubeconfig YAML или base64-представлением kubeconfig:
 
 ```bash
 base64 -w 0 ~/.kube/config

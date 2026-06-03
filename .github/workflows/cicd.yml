@@ -104,9 +104,16 @@ jobs:
         uses: azure/setup-kubectl@v4
 
       - name: Configure kubeconfig
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG }}
         run: |
           mkdir -p "$HOME/.kube"
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
+          if printf '%s' "$KUBE_CONFIG_DATA" | base64 -d > "$HOME/.kube/config" 2>/dev/null; then
+            echo "Kubeconfig decoded from base64"
+          else
+            printf '%s' "$KUBE_CONFIG_DATA" > "$HOME/.kube/config"
+            echo "Kubeconfig written as plain YAML"
+          fi
           chmod 600 "$HOME/.kube/config"
 
       - name: Apply manifests
