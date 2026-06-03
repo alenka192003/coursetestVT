@@ -108,12 +108,52 @@ jobs:
           KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG }}
         run: |
           mkdir -p "$HOME/.kube"
-          if printf '%s' "$KUBE_CONFIG_DATA" | base64 -d > "$HOME/.kube/config" 2>/dev/null; then
-            echo "Kubeconfig decoded from base64"
-          else
-            printf '%s' "$KUBE_CONFIG_DATA" > "$HOME/.kube/config"
-            echo "Kubeconfig written as plain YAML"
-          fi
+          python3 <<'PY'
+          import base64
+          import json
+          import os
+          import subprocess
+          import sys
+
+          raw = os.environ["KUBE_CONFIG_DATA"].strip()
+          kubeconfig_path = os.path.expanduser("~/.kube/config")
+
+          candidates = [("plain secret", raw)]
+
+          try:
+              decoded = base64.b64decode(raw, validate=True).decode("utf-8")
+              candidates.append(("base64 secret", decoded.strip()))
+          except Exception:
+              pass
+
+          for name, value in list(candidates):
+              try:
+                  parsed = json.loads(value)
+                  if isinstance(parsed, str):
+                      candidates.append((f"{name} as JSON string", parsed.strip()))
+                  elif isinstance(parsed, dict):
+                      candidates.append((f"{name} as JSON object", json.dumps(parsed)))
+              except Exception:
+                  pass
+
+          for name, value in candidates:
+              with open(kubeconfig_path, "w", encoding="utf-8") as file:
+                  file.write(value)
+                  file.write("\n")
+
+              result = subprocess.run(
+                  ["kubectl", "config", "view", "--kubeconfig", kubeconfig_path],
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+                  check=False,
+              )
+              if result.returncode == 0:
+                  print(f"Kubeconfig written from {name}")
+                  sys.exit(0)
+
+          print("KUBE_CONFIG is not a valid kubeconfig", file=sys.stderr)
+          sys.exit(1)
+          PY
           chmod 600 "$HOME/.kube/config"
 
       - name: Apply manifests
