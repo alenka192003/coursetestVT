@@ -79,9 +79,7 @@ jobs:
   deploy:
     name: Deploy to Kubernetes
     runs-on: ubuntu-latest
-    needs:
-      - test
-      - build
+    needs: test
     if: github.event_name == 'workflow_dispatch' && needs.test.result == 'success'
     environment: production
     steps:
@@ -92,11 +90,7 @@ jobs:
         id: meta
         run: |
           image="${REGISTRY}/${GITHUB_REPOSITORY,,}"
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
-            version="${{ inputs.image_tag }}"
-          else
-            version="${{ needs.build.outputs.version }}"
-          fi
+          version="${{ inputs.image_tag }}"
           echo "image=${image}" >> "$GITHUB_OUTPUT"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 

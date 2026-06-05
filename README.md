@@ -146,13 +146,22 @@ curl http://coursevt.local/api/v1/courses
 
 ## Настройка Kubernetes
 
-В кластере должен быть установлен Ingress Controller. В манифесте используется `ingressClassName: nginx`. Если в вашем кластере используется другой ingress class, измените поле в `k8s/base/ingress.yaml` или `k8s/local/ingress-local.yaml`.
+Для локальной демонстрации использовался Docker Desktop Kubernetes, Ingress Controller `nginx` и доменное имя:
 
-Текущий домен приложения:
+```text
+coursevt.local
+```
+
+Локальный домен задаётся в `k8s/local/ingress-local.yaml`.
+
+Для внешнего Kubernetes-кластера можно использовать базовый манифест `k8s/base/ingress.yaml`. В нём указан пример домена:
+
 
 ```text
 coursevt.traefik.me
 ```
+
+В кластере должен быть установлен Ingress Controller. В манифестах используется `ingressClassName: nginx`. Если в вашем кластере используется другой ingress class, измените поле в `k8s/base/ingress.yaml` или `k8s/local/ingress-local.yaml`.
 
 Если используется внешний кластер, удобнее заменить host на домен nip.io, привязанный к внешнему IP ingress controller:
 
