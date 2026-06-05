@@ -82,7 +82,7 @@ jobs:
     needs:
       - test
       - build
-    if: always() && needs.test.result == 'success' && (needs.build.result == 'success' || github.event_name == 'workflow_dispatch')
+    if: github.event_name == 'workflow_dispatch' && needs.test.result == 'success'
     environment: production
     steps:
       - name: Checkout
@@ -157,7 +157,7 @@ jobs:
           chmod 600 "$HOME/.kube/config"
 
       - name: Apply manifests
-        run: kubectl apply -k k8s
+        run: kubectl apply -k k8s/base
 
       - name: Update application image
         run: |

@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: coursevt
+  namespace: coursevt
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: coursevt.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: coursevt
+                port:
+                  number: 80

@@ -30,11 +30,16 @@
 │       ├── handler_test.go
 │       └── server.go
 ├── k8s/
-│   ├── deployment.yaml
-│   ├── ingress.yaml
-│   ├── kustomization.yaml
-│   ├── namespace.yaml
-│   └── service.yaml
+│   ├── base/
+│   │   ├── deployment.yaml
+│   │   ├── ingress.yaml
+│   │   ├── kustomization.yaml
+│   │   ├── namespace.yaml
+│   │   └── service.yaml
+│   └── local/
+│       ├── deployment-local.yaml
+│       ├── ingress-local.yaml
+│       └── kustomization.yaml
 ├── Dockerfile
 ├── go.mod
 └── README.md
@@ -61,6 +66,43 @@ curl http://localhost:8080/
 curl http://localhost:8080/healthz
 curl http://localhost:8080/api/v1/courses
 curl http://localhost:8080/api/v1/courses/go-basics
+```
+
+## Локальная демонстрация в Kubernetes
+
+Для локальной проверки используется overlay `k8s/local`. Он разворачивает приложение с образом `coursevt:local` и доменом `coursevt.local`.
+
+Сборка локального Docker-образа:
+
+```bash
+docker build -t coursevt:local .
+```
+
+Применение манифестов:
+
+```bash
+kubectl apply -k k8s/local
+```
+
+Проверка ресурсов:
+
+```bash
+kubectl -n coursevt get pods
+kubectl -n coursevt get service
+kubectl -n coursevt get ingress
+```
+
+Проверка через port-forward, если Ingress ещё не настроен:
+
+```bash
+kubectl -n coursevt port-forward service/coursevt 8080:80
+curl http://localhost:8080/api/v1/courses
+```
+
+Проверка через доменное имя после настройки Ingress Controller и hosts:
+
+```bash
+curl http://coursevt.local/api/v1/courses
 ```
 
 ## API
@@ -104,7 +146,7 @@ curl http://localhost:8080/api/v1/courses/go-basics
 
 ## Настройка Kubernetes
 
-В кластере должен быть установлен Ingress Controller. В манифесте используется `ingressClassName: nginx`. Если в вашем кластере используется другой ingress class, измените поле в `k8s/ingress.yaml`.
+В кластере должен быть установлен Ingress Controller. В манифесте используется `ingressClassName: nginx`. Если в вашем кластере используется другой ingress class, измените поле в `k8s/base/ingress.yaml` или `k8s/local/ingress-local.yaml`.
 
 Текущий домен приложения:
 
