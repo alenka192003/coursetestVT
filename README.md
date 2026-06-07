@@ -179,7 +179,9 @@ coursevt.203.0.113.10.nip.io
 
 Workflow использует GitHub Container Registry: `ghcr.io/<owner>/<repo>`.
 
-Нужно добавить secret в GitHub репозитории:
+Для локального Docker Desktop Kubernetes используется self-hosted GitHub runner. Он запускается на локальном компьютере и имеет доступ к `docker`, `kubectl` и context `docker-desktop`.
+
+Для внешнего Kubernetes-кластера дополнительно нужен secret в GitHub репозитории:
 
 ```text
 KUBE_CONFIG
@@ -192,6 +194,58 @@ base64 -w 0 ~/.kube/config
 ```
 
 Если GHCR package останется приватным, в Kubernetes нужно добавить `imagePullSecret` или сделать package публичным. Для учебного проекта проще сделать опубликованный образ публичным в настройках GHCR package.
+
+## Настройка self-hosted runner
+
+Self-hosted runner нужен для автоматического деплоя в локальный Docker Desktop Kubernetes. GitHub-hosted runner не может подключиться к локальному Kubernetes-кластеру, поэтому deploy job выполняется на локальной машине.
+
+На GitHub откройте репозиторий и перейдите в:
+
+```text
+Settings -> Actions -> Runners -> New self-hosted runner
+```
+
+Выберите:
+
+```text
+Linux -> x64
+```
+
+GitHub покажет команды для установки runner. Их нужно выполнить в WSL. Примерная последовательность:
+
+```bash
+mkdir actions-runner
+cd actions-runner
+curl -o actions-runner-linux-x64.tar.gz -L <URL_FROM_GITHUB>
+tar xzf actions-runner-linux-x64.tar.gz
+export RUNNER_ALLOW_RUNASROOT=1
+./config.sh --url <REPOSITORY_URL> --token <TOKEN_FROM_GITHUB>
+./run.sh
+```
+
+Если WSL используется под пользователем `root`, переменная `RUNNER_ALLOW_RUNASROOT=1` обязательна для настройки и запуска runner.
+
+Команды `curl` и `./config.sh` нужно брать именно со страницы GitHub, потому что там указывается актуальная версия runner и одноразовый token.
+
+После запуска `./run.sh` в терминале должно появиться:
+
+```text
+Listening for Jobs
+```
+
+Перед запуском CI/CD проверьте в WSL:
+
+```bash
+docker ps
+kubectl config use-context docker-desktop
+kubectl get nodes
+```
+
+Также в Docker Desktop Kubernetes должна существовать нода:
+
+```text
+desktop-control-plane
+```
 
 ## Запуск CI/CD по тегу
 
@@ -209,13 +263,15 @@ git push origin v1.0.0
 1. Запуск тестов Go.
 2. Сборку Docker-образа.
 3. Публикацию образа в GHCR.
-4. Применение Kubernetes-манифестов.
-5. Обновление образа в Deployment.
-6. Ожидание успешного rollout.
+4. Запуск deploy job на self-hosted runner.
+5. Сборку локального образа `coursevt:local`.
+6. Загрузку образа в Kubernetes-ноду `desktop-control-plane`.
+7. Применение Kubernetes-манифестов `k8s/local`.
+8. Перезапуск Deployment и ожидание успешного rollout.
 
-## Ручной деплой
+## Ручной деплой во внешний Kubernetes
 
-В GitHub Actions можно запустить workflow вручную через `Run workflow` и указать тег образа, например:
+В GitHub Actions также есть ручной deploy job для внешнего Kubernetes-кластера. Его можно запустить через `Run workflow` и указать тег образа, например:
 
 ```text
 v1.0.0
@@ -228,8 +284,8 @@ v1.0.0
 ```bash
 kubectl -n coursevt get pods
 kubectl -n coursevt get ingress
-curl http://coursevt.traefik.me/
-curl http://coursevt.traefik.me/api/v1/courses
+curl http://coursevt.local/
+curl http://coursevt.local/api/v1/courses
 ```
 
 Ожидаемый ответ:
@@ -254,5 +310,6 @@ curl http://coursevt.traefik.me/api/v1/courses
 - Приложение обрабатывает HTTP GET-запросы: реализованы `/`, `/healthz`, `/api/v1/courses`, `/api/v1/courses/{id}`.
 - Код расположен в git-репозитории: проект предназначен для публикации в GitHub.
 - Сборка запускается при появлении git-тега: trigger `push.tags: v*`.
-- Доставка в Kubernetes выполняется автоматически после сборки или вручную через `workflow_dispatch`.
-- Доступ по доменному имени выполняется через Kubernetes Ingress: `coursevt.traefik.me` или nip.io host.
+- Доставка в локальный Kubernetes выполняется автоматически после сборки через self-hosted runner.
+- Для внешнего Kubernetes предусмотрен ручной deploy через `workflow_dispatch`.
+- Доступ по доменному имени выполняется через Kubernetes Ingress: локально `coursevt.local`, для внешнего кластера можно использовать `traefik.me` или `nip.io`.
